@@ -65,29 +65,29 @@ printf "\t Platform: %s" "${platform}"
 
 # --------------------------------------------------------------------------------
 # ------------- Create local volume where to store the tarballs ------------------
-#printf "\n ------------- \n Creating local volumes... \n ------------- \n"
-#
-#docker volume create opensearch
-#docker volume inspect opensearch
-#
-## --------------------------------------------------------------------------------
-## ---------------------------------- Packaging -----------------------------------
-#printf "\n ------------- \n Packaging... \n ------------- \n"
-#
-#pushd packaging
-#
-## Build the Image for packaging a platform specific tarball
-#IMAGE_NAME_PACKAGING=opensearch-packaging-"${version}"-"${platform}"
-## build_image "${version}" "${platform}" "${IMAGE_NAME_PACKAGING}"
-#
-## Store the platform-specific tarball in the local volume
-#run_container "packaging" "${IMAGE_NAME_PACKAGING}"
-#
-#popd
-#
-## --------------------------------------------------------------------------------
-#
-#wait_until_container_exists "packaging"
+printf "\n ------------- \n Creating local volumes... \n ------------- \n"
+
+docker volume create opensearch
+docker volume inspect opensearch
+
+# --------------------------------------------------------------------------------
+# ---------------------------------- Packaging -----------------------------------
+printf "\n ------------- \n Packaging... \n ------------- \n"
+
+pushd packaging
+
+# Build the Image for packaging a platform specific tarball
+IMAGE_NAME_PACKAGING=opensearch-packaging-"${version}"-"${platform}"
+build_image "${version}" "${platform}" "${IMAGE_NAME_PACKAGING}"
+
+# Store the platform-specific tarball in the local volume
+run_container "packaging" "${IMAGE_NAME_PACKAGING}"
+
+popd
+
+# --------------------------------------------------------------------------------
+
+wait_until_container_exists "packaging"
 
 # --------------------------------------------------------------------------------
 # ---------------------------------- Testing -------------------------------------
