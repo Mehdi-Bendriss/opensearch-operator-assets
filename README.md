@@ -1,6 +1,6 @@
 # opensearch-operator-assets
 
-### Run releasing / packaging:
+### 1. releasing / packaging along with integratin tests running:
 
 #### Options:
 - `--version`: opensearch version, default: `2.1.0`
