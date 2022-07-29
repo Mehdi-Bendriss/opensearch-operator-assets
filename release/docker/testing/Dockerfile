@@ -4,49 +4,57 @@ ARG VERSION=2.1.0
 ARG PLATFORM=linux
 
 RUN \
-    apt update \
-    && apt upgrade -y \
-    && apt install -y \
+    apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y \
+        apache2 \
         apt-transport-https \
-        curl \
-        g++ \
-        gcc \
         git \
-        gnupg2 \
-        make \
-        ruby-full \
         wget \
     && mkdir -p /etc/apt/keyrings \
-    && curl -sL https://deb.nodesource.com/setup_lts.x | bash - \
-    && curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | tee /usr/share/keyrings/yarnkey.gpg >/dev/null \
-    && echo "deb [signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com/debian stable main" \
-        | tee /etc/apt/sources.list.d/yarn.list \
     && wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc \
     && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" \
         | tee /etc/apt/sources.list.d/adoptium.list \
-    && apt update \
-    && apt install -y \
-        nodejs \
-        temurin-17-jdk \
-        yarn
+    && apt-get update \
+    && apt-get install -y temurin-11-jdk
+
+COPY install_http_server.sh /
+
+RUN \
+    chmod +x /install_http_server.sh \
+    && . /install_http_server.sh
 
 WORKDIR /opensearch/source
 
-ENV VERSION=$VERSION
-ENV PLATFORM=$PLATFORM
+ENV VERSION=${VERSION}
+ENV PLATFORM=${PLATFORM}
 
+# create an opensearch user/group, opensearch cannot run with root
 CMD \
-    && rm -f "/opensearch/dist/${VERSION}-${PLATFORM}/SUCCESS" \
-    && ls -la /opensearch/dist/${VERSION}-${PLATFORM} \
-    && nohup ruby -run -ehttpd /opensearch/dist/${VERSION}-${PLATFORM} -p3000 & \
-    && sleep 3s \
-    && wget -qO- http://localhost:3000 \
-    && find /opensearch/dist/ -type f -name "*.tar.gz" \
+    find /opensearch/dist/${VERSION}-${PLATFORM}/ -type f -name "*.tar.gz" \
         | xargs basename \
         | ( \
           read -r name \
-          && ./gradlew integTest -PcustomDistributionUrl="http://localhost:3000/${name}" \
+
+          && cp /opensearch/dist/${VERSION}-${PLATFORM}/${name} /var/www/localhost/ \
+          && service apache2 restart \
+          && service apache2 status \
+
+          && ./gradlew clean \
+
+          && groupadd -g 1000 opensearch \
+          && adduser -uid 1000 -gid 1000 --home /opensearch/source --disabled-login --disabled-password --gecos "" opensearch \
+          && chown -R 1000:1000 /opensearch/source \
+          && chmod -R 0775 /opensearch/source \
+          && find /opensearch/source -type f -name "*.java" -exec chmod 666 {} \; \
+
+          && printf "\norg.gradle.daemon=false\n" >> ./gradle.properties \
+          && sed -i -e 's/org.gradle.daemon=true/org.gradle.daemon=false/g' ./gradle.properties \
+          && sed -i -e 's/org.gradle.parallel=true/org.gradle.parallel=false/g' ./gradle.properties \
+          && sed -i -e 's/org.gradle.caching=true/org.gradle.caching=false/g' ./gradle.properties \
+
+          && runuser -l opensearch -c './gradlew clean' \
+          && runuser -l opensearch -c './gradlew integTest -PcustomDistributionUrl="https://localhost/${name}" --stacktrace' \
+
           && touch /opensearch/dist/${VERSION}-${PLATFORM}/SUCCESS \
           )
-
-
