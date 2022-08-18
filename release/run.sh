@@ -76,43 +76,24 @@ docker volume create opensearch
 docker volume inspect opensearch
 
 # -------------------------- Packaging opensearch-min ---------------------------
-#printf "\n ------------- \n Packaging... \n ------------- \n"
-#
-#pushd packaging
-#
-## Build the Image for packaging a platform specific tarball
-#IMAGE_NAME_PACKAGING=opensearch-packaging-"${version}"-"${platform}"
-#build_image "${version}" "${platform}" "${IMAGE_NAME_PACKAGING}"
-#
-## Store the platform-specific tarball in the local volume
-#run_container "packaging" "${IMAGE_NAME_PACKAGING}"
-#
-#popd
-#
-## --------------------------------------------------------------------------------
-#
-#wait_until_container_exists "packaging"
+printf "\n ------------- \n Packaging... \n ------------- \n"
+
+pushd packaging
+
+# Build the Image for packaging a platform specific tarball
+IMAGE_NAME_PACKAGING=opensearch-packaging-"${version}"-"${platform}"
+build_image "${version}" "${platform}" "${IMAGE_NAME_PACKAGING}"
+
+# Store the platform-specific tarball in the local volume
+run_container "packaging" "${IMAGE_NAME_PACKAGING}"
+
+popd
+
+wait_until_container_exists "packaging"
 
 # --------------------------------------------------------------------------------
-# ---------------------------------- Testing -------------------------------------
-#printf "\n ------------- \n Testing... \n ------------- \n"
-#
-#pushd testing
-#
-## Build the Image for running integration tests against the generated platform-specific tarball
-#IMAGE_NAME_TESTING=opensearch-testing-"${version}"-"${platform}"
-#build_image "${version}" "${platform}" "${IMAGE_NAME_TESTING}"
-#
-## Run the integration tests and store a success file upon success
-#run_container "testing" "${IMAGE_NAME_TESTING}"
-#
-#popd
-#
-## --------------------------------------------------------------------------------
-#
-#wait_until_container_exists "testing"
 
-# --------------------------------------------------------------------------------
+# ------------------------ Building and Packaging Plugins ------------------------
 printf "\n ------------- \n Packaging Plugins... \n ------------- \n"
 
 pushd packaging-plugins
@@ -125,7 +106,6 @@ docker build \
         --build-arg PLUGINS="${plugins}" \
         --no-cache \
         --progress=plain .
-# build_image "${version}" "${platform}" "${IMAGE_NAME_PACKAGING}"
 
 # Store the platform-specific tarball in the local volume
 run_container "packaging-plugins" "${IMAGE_NAME_PACKAGING_PLUGINS}"
@@ -137,7 +117,7 @@ wait_until_container_exists "packaging-plugins"
 # --------------------------------------------------------------------------------
 
 
-# --------------------------------------------------------------------------------
+# ------------------ Installing plugins and packaging full release ---------------
 printf "\n -------- \n Installing Plugins and Packaging full release... \n ------- \n"
 
 pushd packaging-full
@@ -152,6 +132,47 @@ run_container "packaging-full" "${IMAGE_NAME_PACKAGING_FULL}"
 popd
 
 wait_until_container_exists "packaging-full"
+
+# --------------------------------------------------------------------------------
+
+# ---------------------------------- Testing -------------------------------------
+printf "\n ------------- \n Testing... \n ------------- \n"
+
+pushd testing
+
+# Build the Image for running integration tests against the generated platform-specific tarball
+IMAGE_NAME_TESTING=opensearch-testing-"${version}"-"${platform}"
+build_image "${version}" "${platform}" "${IMAGE_NAME_TESTING}"
+
+# Run the integration tests and store a success file upon success
+run_container "testing" "${IMAGE_NAME_TESTING}"
+
+popd
+
+wait_until_container_exists "testing"
+
+# --------------------------------------------------------------------------------
+
+# ---------------------------------- Testing Plugins -------------------------------------
+printf "\n ------------- \n Testing Plugins ... \n ------------- \n"
+
+pushd testing
+
+# Build the Image for running integration tests against the generated platform-specific tarball
+IMAGE_NAME_TESTING_PLUGINS=opensearch-testing-plugins-"${version}"
+docker build \
+        -t "${IMAGE_NAME_TESTING_PLUGINS}" \
+        --build-arg VERSION="${version}" \
+        --build-arg PLUGINS="${plugins}" \
+        --no-cache \
+        --progress=plain .
+
+# Run the integration tests for each plugin
+run_container "testing-plugins" "${IMAGE_NAME_TESTING_PLUGINS}"
+
+popd
+
+wait_until_container_exists "testing-plugins"
 
 # --------------------------------------------------------------------------------
 
