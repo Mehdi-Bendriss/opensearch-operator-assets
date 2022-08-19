@@ -29,17 +29,20 @@ CMD \
         for plugin in ${plugins}; do \
             echo "Building plugin: opensearch-${plugin}" \
 
-            && read repo buildCmd < <(echo $(jq -r ".[\"${plugin}\"].repo, .[\"${plugin}\"].buildCmd" /tmp/plugins.json)) \
-            && rm -rf "${BASE_PLUGINS_DIR}/sources/${plugin}" \
-            && git clone -b "${VERSION}.0" --single-branch "${repo}" "${BASE_PLUGINS_DIR}/sources/${plugin}" \
+            && PLUGIN_NAME=$(awk -F: '{print $1}' <<< "${plugin}") \
+            && TAG_VERSION=$(awk -F: '{print $2==""?"0":$2}' <<< "${plugin}") \
 
-            && pushd "${BASE_PLUGINS_DIR}/sources/${plugin}/" \
+            && read repo buildCmd < <(echo $(jq -r ".[\"${PLUGIN_NAME}\"].repo, .[\"${PLUGIN_NAME}\"].buildCmd" /tmp/plugins.json)) \
+            && rm -rf "${BASE_PLUGINS_DIR}/sources/${PLUGIN_NAME}" \
+            && git clone -b "${VERSION}.${TAG_VERSION}" --single-branch "${repo}" "${BASE_PLUGINS_DIR}/sources/${PLUGIN_NAME}" \
+
+            && pushd "${BASE_PLUGINS_DIR}/sources/${PLUGIN_NAME}/" \
 
             && echo "Running: ${buildCmd/VERSION/$VERSION}" \
             && eval "${buildCmd/VERSION/$VERSION}" \
 
             && mkdir -p "${BASE_PLUGINS_DIR}/dist/" \
-            && mv build/distributions/opensearch-${plugin}-${VERSION}.0.zip "${BASE_PLUGINS_DIR}/dist/opensearch-${plugin}-${VERSION}.zip" \
+            && mv build/distributions/opensearch-${PLUGIN_NAME}-${VERSION}.${TAG_VERSION}.zip "${BASE_PLUGINS_DIR}/dist/opensearch-${PLUGIN_NAME}-${VERSION}.zip" \
 
             && popd; \
         done \
