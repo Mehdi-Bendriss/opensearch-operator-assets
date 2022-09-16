@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-ARG VERSION=2.1.0
+ARG VERSION=2.2.0
 ARG PLATFORM=linux
 
 RUN \

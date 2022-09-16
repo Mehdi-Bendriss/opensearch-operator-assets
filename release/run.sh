@@ -1,8 +1,27 @@
 #!/usr/bin/env bash
 
-set -e
+set -e -x
 
 # --------------------------------------------------------------------------------
+
+version=${version:-2.2.0}
+platform=${platform:-linux}
+plugins=${plugins:-"security asynchronous-search cross-cluster-replication"}
+
+
+function parse_args () {
+    while [ $# -gt 0 ]; do
+        if [[ $1 == "--help" ]]; then
+            usage
+            exit 0
+        elif [[ $1 == *"--"* ]]; then
+            param="${1/--/}"
+            declare "$param"="$2"
+        fi
+        shift
+    done
+}
+
 
 function build_image () {
     docker build \
@@ -14,6 +33,9 @@ function build_image () {
 }
 
 function run_container () {
+    docker stop "$1" || true
+    docker rm --force "$1" || true
+
     docker run \
         -d \
         -v opensearch:/opensearch \
@@ -38,40 +60,22 @@ function wait_until_container_exists () {
     printf "\t --- \n\t succeeded... \n"
 }
 
-# --------------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------------
 pushd docker
 
-# --------------------------------------------------------------------------------
 # ------------------------- Command line args parsing ----------------------------
 printf "\n ------------- \n Command line parsing... \n ------------- \n"
 
-version=${version:-2.1.0}
-platform=${platform:-linux}
+parse_args "$@"
 
-while [ $# -gt 0 ]; do
-    if [[ $1 == "--help" ]]; then
-        usage
-        exit 0
-    elif [[ $1 == *"--"* ]]; then
-        param="${1/--/}"
-        declare "$param"="$2"
-    fi
-    shift
-done
-
-printf "\t Version: %s" "${version}"
-printf "\t Platform: %s" "${platform}"
-
-# --------------------------------------------------------------------------------
 # ------------- Create local volume where to store the tarballs ------------------
 printf "\n ------------- \n Creating local volumes... \n ------------- \n"
 
 docker volume create opensearch
 docker volume inspect opensearch
 
-# --------------------------------------------------------------------------------
-# ---------------------------------- Packaging -----------------------------------
+# -------------------------- Packaging opensearch-min ---------------------------
 printf "\n ------------- \n Packaging... \n ------------- \n"
 
 pushd packaging
@@ -85,11 +89,52 @@ run_container "packaging" "${IMAGE_NAME_PACKAGING}"
 
 popd
 
-# --------------------------------------------------------------------------------
-
 wait_until_container_exists "packaging"
 
 # --------------------------------------------------------------------------------
+
+# ------------------------ Building and Packaging Plugins ------------------------
+printf "\n ------------- \n Packaging Plugins... \n ------------- \n"
+
+pushd packaging-plugins
+
+# Build the Image for packaging a platform specific tarball
+IMAGE_NAME_PACKAGING_PLUGINS=opensearch-packaging-plugins-"${version}"
+docker build \
+        -t "${IMAGE_NAME_PACKAGING_PLUGINS}" \
+        --build-arg VERSION="${version}" \
+        --build-arg PLUGINS="${plugins}" \
+        --no-cache \
+        --progress=plain .
+
+# Store the platform-specific tarball in the local volume
+run_container "packaging-plugins" "${IMAGE_NAME_PACKAGING_PLUGINS}"
+
+popd
+
+wait_until_container_exists "packaging-plugins"
+
+# --------------------------------------------------------------------------------
+
+
+# ------------------ Installing plugins and packaging full release ---------------
+printf "\n -------- \n Installing Plugins and Packaging full release... \n ------- \n"
+
+pushd packaging-full
+
+# Build the Image for packaging a platform specific tarball
+IMAGE_NAME_PACKAGING_FULL=opensearch-packaging-full-"${version}"-"${platform}"
+build_image "${version}" "${platform}" "${IMAGE_NAME_PACKAGING_FULL}"
+
+# Store the platform-specific tarball in the local volume
+run_container "packaging-full" "${IMAGE_NAME_PACKAGING_FULL}"
+
+popd
+
+wait_until_container_exists "packaging-full"
+
+# --------------------------------------------------------------------------------
+
 # ---------------------------------- Testing -------------------------------------
 printf "\n ------------- \n Testing... \n ------------- \n"
 
@@ -104,9 +149,30 @@ run_container "testing" "${IMAGE_NAME_TESTING}"
 
 popd
 
+wait_until_container_exists "testing"
+
 # --------------------------------------------------------------------------------
 
-wait_until_container_exists "testing"
+# ---------------------------------- Testing Plugins -------------------------------------
+printf "\n ------------- \n Testing Plugins ... \n ------------- \n"
+
+pushd testing
+
+# Build the Image for running integration tests against the generated platform-specific tarball
+IMAGE_NAME_TESTING_PLUGINS=opensearch-testing-plugins-"${version}"
+docker build \
+        -t "${IMAGE_NAME_TESTING_PLUGINS}" \
+        --build-arg VERSION="${version}" \
+        --build-arg PLUGINS="${plugins}" \
+        --no-cache \
+        --progress=plain .
+
+# Run the integration tests for each plugin
+run_container "testing-plugins" "${IMAGE_NAME_TESTING_PLUGINS}"
+
+popd
+
+wait_until_container_exists "testing-plugins"
 
 # --------------------------------------------------------------------------------
 

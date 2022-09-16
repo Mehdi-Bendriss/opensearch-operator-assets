@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-ARG VERSION=2.1.0
+ARG VERSION=2.2.0
 ARG PLATFORM=linux
 
 RUN \
@@ -26,7 +26,7 @@ ENV PLATFORM=${PLATFORM}
 
 # create an opensearch user/group, opensearch cannot run with root
 CMD \
-    find /opensearch/dist/${VERSION}-${PLATFORM}/ -type f -name "*.tar.gz" \
+    find /opensearch/dist/${VERSION}-${PLATFORM}/ -type f -name "-min-*.tar.gz" \
         | xargs basename \
         | ( \
           read -r name \
