@@ -1,0 +1,18 @@
+{
+  "security": {
+    "repo": "https://github.com/opensearch-project/security",
+    "buildCmd": "./gradlew clean assemble --no-daemon --refresh-dependencies -DskipTests=true -Dopensearch.version=VERSION -Dbuild.snapshot=false"
+  },
+  "asynchronous-search": {
+    "repo": "https://github.com/opensearch-project/asynchronous-search",
+    "buildCmd": "./gradlew clean assemble --no-daemon --refresh-dependencies -DskipTests=true -Dopensearch.version=VERSION -Dbuild.snapshot=false"
+  },
+  "cross-cluster-replication": {
+    "repo": "https://github.com/opensearch-project/cross-cluster-replication",
+    "buildCmd": "./gradlew clean assemble --no-daemon --refresh-dependencies -DskipTests=true -Dopensearch.version=VERSION -Dbuild.snapshot=false"
+  },
+  "ml": {
+    "repo": "https://github.com/opensearch-project/ml-commons",
+    "buildCmd": "./gradlew clean assemble --no-daemon --refresh-dependencies -DskipTests=true -Dopensearch.version=VERSION -Dbuild.snapshot=false"
+  }
+}

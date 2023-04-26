@@ -1,0 +1,14 @@
+{
+  "security": {
+    "integrationTestsCmd": "OPENDISTRO_SECURITY_TEST_OPENSSL_OPT=true ./gradlew test"
+  },
+  "asynchronous-search": {
+    "integrationTestsCmd": "OPENSEARCH_HOME=/opensearch/source ./gradlew integTest -PnumNodes=3"
+  },
+  "cross-cluster-replication": {
+    "integrationTestsCmd": "OPENSEARCH_HOME=/opensearch/source ./gradlew integTest"
+  },
+  "ml": {
+    "integrationTestsCmd": "OPENSEARCH_HOME=/opensearch/source ./gradlew integTest -PnumNodes=3"
+  }
+}
